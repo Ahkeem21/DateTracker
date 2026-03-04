@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DateTrack — Dating Tracker</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0c0c14;
+      --surface:  #13131d;
+      --card:     #1a1a27;
+      --card-h:   #20202f;
+      --border:   #252535;
+      --border-h: #3a3a55;
+      --a1:       #a855f7;
+      --a2:       #ec4899;
+      --grad:     linear-gradient(135deg, #a855f7, #ec4899);
+      --text:     #f0f0f8;
+      --sub:      #8888aa;
+      --muted:    #44445a;
+      --green:    #4ade80;
+      --green-bg: rgba(74,222,128,.08);
+      --green-br: rgba(74,222,128,.25);
+      --red:      #f87171;
+      --red-bg:   rgba(248,113,113,.08);
+      --red-br:   rgba(248,113,113,.25);
+      --yellow:   #fbbf24;
+      --orange:   #fb923c;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Background glow ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 20% -10%, rgba(168,85,247,.12) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 35% at 80% 110%, rgba(236,72,153,.10) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(12,12,20,.80);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: .6rem;
+      font-size: 1.2rem; font-weight: 800; letter-spacing: -.02em;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-heart { font-size: 1.4rem; line-height: 1; }
+
+    .btn-primary {
+      background: var(--grad); color: #fff;
+      border: none; padding: .6rem 1.4rem;
+      border-radius: 12px; font-size: .875rem; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; gap: .4rem;
+      transition: opacity .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 4px 20px rgba(168,85,247,.3);
+    }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 6px 28px rgba(168,85,247,.4); }
+    .btn-primary:active { transform: translateY(0); }
+
+    /* ── Main wrapper ── */
+    .main { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 2rem; }
+
+    /* ── Stats ── */
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem;
+      padding: 1.5rem 0 1rem;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.1rem 1.25rem;
+      display: flex; align-items: center; gap: .9rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .stat-card:hover { border-color: var(--border-h); transform: translateY(-2px); }
+    .stat-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; flex-shrink: 0;
+    }
+    .si-p  { background: rgba(168,85,247,.12); }
+    .si-pk { background: rgba(236,72,153,.12); }
+    .si-g  { background: rgba(74,222,128,.10); }
+    .si-y  { background: rgba(251,191,36,.10); }
+    .stat-val { font-size: 1.45rem; font-weight: 800; line-height: 1.1; }
+    .stat-lbl { font-size: .75rem; color: var(--sub); margin-top: 2px; }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex; align-items: center; gap: .75rem;
+      padding-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .search-wrap { position: relative; flex: 1; max-width: 320px; }
+    .search-wrap .ico { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .9rem; pointer-events: none; }
+    .search-wrap input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 11px; padding: .6rem 1rem .6rem 2.5rem;
+      color: var(--text); font-size: .875rem; outline: none;
+      transition: border-color .2s;
+    }
+    .search-wrap input:focus { border-color: var(--a1); }
+    .sort-sel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 11px; padding: .6rem 1rem; color: var(--text);
+      font-size: .875rem; outline: none; cursor: pointer;
+    }
+    .count-label { margin-left: auto; font-size: .8rem; color: var(--sub); }
+
+    /* ── Cards grid ── */
+    .cards-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(370px,1fr));
+      gap: 1.1rem; padding-bottom: 3rem;
+    }
+
+    /* ── Date card ── */
+    .date-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 1.4rem;
+      transition: transform .2s, border-color .2s, box-shadow .2s;
+      position: relative; overflow: hidden;
+    }
+    .date-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--grad); opacity: 0; transition: opacity .2s;
+    }
+    .date-card:hover { transform: translateY(-3px); border-color: var(--border-h); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+    .date-card:hover::after { opacity: 1; }
+
+    .rank-pip {
+      position: absolute; top: 1rem; left: 1.4rem;
+      width: 22px; height: 22px; border-radius: 7px;
+      background: var(--grad);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .68rem; font-weight: 800; color: #fff;
+    }
+    .has-rank .card-avatar { margin-left: 30px; }
+
+    .card-top {
+      display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.1rem;
+    }
+    .card-avatar {
+      width: 50px; height: 50px; border-radius: 14px;
+      background: var(--grad);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; font-weight: 800; color: #fff;
+      flex-shrink: 0; text-transform: uppercase; letter-spacing: -.02em;
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-size: 1.05rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-meta { font-size: .78rem; color: var(--sub); margin-top: 2px; }
+
+    /* score ring */
+    .score-ring { width: 54px; height: 54px; flex-shrink: 0; position: relative; }
+    .score-ring svg { transform: rotate(-90deg); width: 54px; height: 54px; }
+    .score-ring .tr { fill: none; stroke: var(--border); stroke-width: 4; }
+    .score-ring .pg { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.4,0,.2,1); }
+    .score-inner {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .score-num { font-size: .9rem; font-weight: 800; }
+    .score-lbl { font-size: .55rem; color: var(--muted); margin-top: 1px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+
+    /* badges */
+    .badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .9rem; }
+    .badge {
+      font-size: .7rem; font-weight: 700; padding: 3px 10px;
+      border-radius: 20px; display: inline-flex; align-items: center; gap: 3px; letter-spacing: .01em;
+    }
+    .b-irl  { background: rgba(251,191,36,.1);  color: var(--yellow); border: 1px solid rgba(251,191,36,.25); }
+    .b-app  { background: rgba(168,85,247,.1);   color: var(--a1);     border: 1px solid rgba(168,85,247,.25); }
+    .b-ok   { background: rgba(74,222,128,.1);   color: var(--green);  border: 1px solid rgba(74,222,128,.25); }
+    .b-bad  { background: rgba(248,113,113,.1);  color: var(--red);    border: 1px solid rgba(248,113,113,.25); }
+    .b-date { background: rgba(236,72,153,.08);  color: var(--a2);     border: 1px solid rgba(236,72,153,.2); }
+
+    /* chips */
+    .chip-row { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .8rem; }
+    .chip {
+      font-size: .7rem; padding: 3px 10px; border-radius: 20px;
+    }
+    .chip-int { background: rgba(168,85,247,.09); color: #c084fc; border: 1px solid rgba(168,85,247,.18); }
+    .chip-gf  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-br); }
+    .chip-rf  { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-br); }
+
+    .sec-lbl {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); margin-bottom: .4rem;
+    }
+    .notes-preview {
+      font-size: .76rem; color: var(--sub); font-style: italic;
+      line-height: 1.55; margin-bottom: .8rem;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-actions { display: flex; gap: .5rem; padding-top: .9rem; border-top: 1px solid var(--border); }
+    .btn-sm {
+      flex: 1; padding: .48rem .5rem; border-radius: 9px;
+      font-size: .78rem; font-weight: 700; cursor: pointer; border: 1px solid; transition: all .15s;
+    }
+    .btn-edit   { background: rgba(168,85,247,.08); color: var(--a1);  border-color: rgba(168,85,247,.2); }
+    .btn-edit:hover   { background: rgba(168,85,247,.18); }
+    .btn-delete { background: rgba(248,113,113,.08); color: var(--red); border-color: rgba(248,113,113,.2); }
+    .btn-delete:hover { background: rgba(248,113,113,.18); }
+
+    /* ── Empty state ── */
+    .empty-state {
+      grid-column: 1/-1; text-align: center;
+      padding: 5rem 2rem; display: flex; flex-direction: column; align-items: center;
+    }
+    .empty-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.25rem; font-weight: 800; margin-bottom: .5rem; }
+    .empty-state p { color: var(--sub); margin-bottom: 1.5rem; font-size: .9rem; }
+
+    /* ── Modal ── */
+    .overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; width: 100%; max-width: 620px; max-height: 92vh;
+      overflow-y: auto; transform: translateY(16px) scale(.98);
+      transition: transform .22s cubic-bezier(.34,1.56,.64,1);
+    }
+    .overlay.open .modal { transform: none; }
+
+    .modal-header {
+      padding: 1.5rem 1.5rem 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 1.15rem; font-weight: 800;
+      background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .btn-x {
+      width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--border);
+      background: transparent; color: var(--sub); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .95rem; transition: all .15s;
+    }
+    .btn-x:hover { background: var(--card); color: var(--text); }
+
+    .modal-body { padding: 1.25rem 1.5rem 1.5rem; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+    .fg { display: flex; flex-direction: column; gap: .35rem; }
+    .fg.span2 { grid-column: 1/-1; }
+
+    .fg label {
+      font-size: .72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--sub);
+    }
+    .fg input, .fg textarea, .fg select {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: .6rem .9rem;
+      color: var(--text); font-size: .875rem; outline: none;
+      transition: border-color .2s; width: 100%; font-family: inherit;
+    }
+    .fg input:focus, .fg textarea:focus { border-color: var(--a1); }
+    .fg textarea { resize: vertical; min-height: 72px; }
+
+    /* radio toggle */
+    .radio-row { display: flex; gap: .5rem; }
+    .r-opt { flex: 1; position: relative; }
+    .r-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .r-opt label {
+      display: flex; align-items: center; justify-content: center; gap: .35rem;
+      padding: .6rem .5rem; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; cursor: pointer; transition: all .15s;
+      text-transform: none; letter-spacing: 0; font-size: .83rem; font-weight: 600; color: var(--sub);
+    }
+    .r-opt input:checked + label { background: rgba(168,85,247,.1); border-color: var(--a1); color: var(--a1); }
+
+    /* checkbox grid */
+    .cb-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: .4rem; }
+    .cb-opt { position: relative; }
+    .cb-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .cb-opt label {
+      display: flex; align-items: center; justify-content: center;
+      padding: .5rem .4rem; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; cursor: pointer; transition: all .15s;
+      text-transform: none; letter-spacing: 0; font-size: .8rem; font-weight: 600; color: var(--sub);
+    }
+    .cb-opt input:checked + label { background: rgba(168,85,247,.1); border-color: var(--a1); color: #c084fc; }
+
+    /* flag tags */
+    .tags-wrap { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .tag-btn {
+      padding: 4px 12px; border-radius: 20px;
+      font-size: .73rem; font-weight: 700; cursor: pointer; transition: all .15s; border: 1px solid;
+      background: transparent;
+    }
+    .tag-gf { color: var(--green); border-color: var(--green-br); }
+    .tag-gf:hover, .tag-gf.on { background: rgba(74,222,128,.14); border-color: var(--green); }
+    .tag-rf { color: var(--red);   border-color: var(--red-br); }
+    .tag-rf:hover, .tag-rf.on { background: rgba(248,113,113,.14); border-color: var(--red); }
+
+    .divider { height: 1px; background: var(--border); margin: 1.1rem 0; }
+    .sec-title { font-size: .88rem; font-weight: 700; margin-bottom: .65rem; }
+
+    .modal-foot { display: flex; gap: .65rem; margin-top: 1.25rem; }
+    .btn-cancel {
+      flex: 1; padding: .68rem; border-radius: 11px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--sub); font-size: .875rem; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-cancel:hover { background: var(--card); color: var(--text); }
+    .btn-save {
+      flex: 2; padding: .68rem; border-radius: 11px;
+      background: var(--grad); border: none; color: #fff;
+      font-size: .9rem; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(168,85,247,.3); transition: opacity .15s, box-shadow .15s;
+    }
+    .btn-save:hover { opacity: .9; box-shadow: 0 6px 28px rgba(168,85,247,.4); }
+
+    /* score bar (in modal) */
+    .score-preview {
+      display: flex; align-items: center; gap: .75rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: .85rem 1rem; margin-bottom: 1rem;
+    }
+    .score-preview-ring { width: 48px; height: 48px; flex-shrink: 0; position: relative; }
+    .score-preview-ring svg { transform: rotate(-90deg); width: 48px; height: 48px; }
+    .score-preview-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+    .sp-num { font-size: .88rem; font-weight: 800; }
+    .sp-lbl { font-size: .5rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+    .score-breakdown { flex: 1; font-size: .75rem; color: var(--sub); line-height: 1.6; }
+    .score-breakdown strong { color: var(--text); }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 800px) {
+      .main { padding: 0 1rem; }
+      .stats-bar { grid-template-columns: repeat(2,1fr); }
+      .cards-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .fg.span2 { grid-column: 1; }
+      .cb-grid { grid-template-columns: repeat(2,1fr); }
+      .navbar { padding: 0 1rem; }
+    }
+    @media (max-width: 480px) {
+      .stats-bar { grid-template-columns: 1fr 1fr; gap: .65rem; }
+      .stat-val { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<nav class="navbar">
+  <div class="logo">
+    <span class="logo-heart">&#128152;</span>
+    DateTrack
+  </div>
+  <button class="btn-primary" onclick="openModal()">
+    <span>+</span> Log New Date
+  </button>
+</nav>
+
+<div class="main">
+
+  <!-- ── Stats ── -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <div class="stat-icon si-p">&#128101;</div>
+      <div>
+        <div class="stat-val" id="sTotal">0</div>
+        <div class="stat-lbl">People Dated</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon si-pk">&#128197;</div>
+      <div>
+        <div class="stat-val" id="sDates">0</div>
+        <div class="stat-lbl">Total Dates</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon si-g">&#11088;</div>
+      <div>
+        <div class="stat-val" id="sAvg">&#8212;</div>
+        <div class="stat-lbl">Avg Score</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon si-y">&#127942;</div>
+      <div>
+        <div class="stat-val" id="sTop" style="font-size:1rem">&#8212;</div>
+        <div class="stat-lbl">Most Compatible</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Controls ── -->
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="ico">&#128269;</span>
+      <input type="text" id="searchInput" placeholder="Search by name or job…" oninput="renderCards()">
+    </div>
+    <select class="sort-sel" id="sortSel" onchange="renderCards()">
+      <option value="score">Ranked by Score</option>
+      <option value="name">Alphabetical</option>
+      <option value="dates">Most Dates</option>
+      <option value="newest">Newest First</option>
+    </select>
+    <span class="count-label" id="countLabel"></span>
+  </div>
+
+  <!-- ── Cards ── -->
+  <div class="cards-grid" id="cardsGrid"></div>
+
+</div>
+
+<!-- ── Modal ── -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Log New Date</div>
+      <button class="btn-x" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+
+      <!-- live score preview -->
+      <div class="score-preview" id="scorePreview" style="display:none">
+        <div class="score-preview-ring">
+          <svg viewBox="0 0 48 48">
+            <circle class="tr" cx="24" cy="24" r="19"/>
+            <circle id="spPg" class="pg" cx="24" cy="24" r="19" stroke="#a855f7"
+              stroke-dasharray="119.38" stroke-dashoffset="119.38"/>
+          </svg>
+          <div class="score-preview-inner">
+            <span class="sp-num" id="spNum">—</span>
+            <span class="sp-lbl" id="spLbl">Score</span>
+          </div>
+        </div>
+        <div class="score-breakdown" id="spBreak"></div>
+      </div>
+
+      <div class="form-grid">
+        <div class="fg">
+          <label>Name *</label>
+          <input type="text" id="fName" placeholder="e.g. Alex" oninput="liveScore()">
+        </div>
+        <div class="fg">
+          <label>Age</label>
+          <input type="number" id="fAge" placeholder="28" min="18" max="99">
+        </div>
+        <div class="fg">
+          <label>Job / Profession</label>
+          <input type="text" id="fJob" placeholder="e.g. Designer">
+        </div>
+        <div class="fg">
+          <label>Number of Dates</label>
+          <input type="number" id="fDates" placeholder="1" min="1" value="1" oninput="liveScore()">
+        </div>
+
+        <div class="fg span2">
+          <label>How You Met</label>
+          <div class="radio-row">
+            <div class="r-opt">
+              <input type="radio" name="rMet" id="rIRL" value="IRL">
+              <label for="rIRL">&#128205; In Real Life</label>
+            </div>
+            <div class="r-opt">
+              <input type="radio" name="rMet" id="rApp" value="App" checked>
+              <label for="rApp">&#128241; Dating App</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="fg span2">
+          <label>Communication Style</label>
+          <div class="radio-row">
+            <div class="r-opt">
+              <input type="radio" name="rComm" id="rCon" value="Consistent" checked onchange="liveScore()">
+              <label for="rCon">&#9989; Consistent</label>
+            </div>
+            <div class="r-opt">
+              <input type="radio" name="rComm" id="rInc" value="Inconsistent" onchange="liveScore()">
+              <label for="rInc">&#9889; Inconsistent</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="sec-title">&#128161; Shared Interests</div>
+      <div class="cb-grid" id="interestsGrid"></div>
+
+      <div class="divider"></div>
+      <div class="sec-title">&#9989; Green Flags</div>
+      <div class="tags-wrap" id="greenWrap"></div>
+
+      <div style="margin-top:.85rem">
+        <div class="sec-title">&#128681; Red Flags</div>
+        <div class="tags-wrap" id="redWrap"></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="fg">
+        <label>Notes (optional)</label>
+        <textarea id="fNotes" placeholder="Anything worth remembering…"></textarea>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-save" onclick="saveEntry()">Save Entry</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────
+const INTERESTS = ['Fitness','Religion','Politics','Entertainment','Music','Values'];
+const GREEN_FLAGS = [
+  'Emotionally Available','Great Communicator','Consistent','Respectful',
+  'Honest','Supportive','Goal-Oriented','Good Listener','Kind & Caring','Makes Effort'
+];
+const RED_FLAGS = [
+  'Ghosting','Love Bombing','Dishonest','Controlling',
+  'Hot & Cold','Disrespectful','Jealous','Breadcrumbing','Avoidant','Rude to Staff'
+];
+
+// ─── State ───────────────────────────────────────────────────
+let entries = JSON.parse(localStorage.getItem('dt_v2') || '[]');
+const save  = () => localStorage.setItem('dt_v2', JSON.stringify(entries));
+
+// ─── Score ───────────────────────────────────────────────────
+function calcScore(e) {
+  let s = 50;
+  s += e.communication === 'Consistent' ? 20 : -15;
+  s += (e.interests  || []).length * 5;     // up to +30
+  s += (e.greenFlags || []).length * 4;     // up to +40
+  s -= (e.redFlags   || []).length * 8;     // down steeply
+  s += Math.min((e.numDates || 1) - 1, 4); // up to +4
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+function scoreColor(s) {
+  if (s >= 80) return '#4ade80';
+  if (s >= 60) return '#fbbf24';
+  if (s >= 40) return '#fb923c';
+  return '#f87171';
+}
+function scoreLabel(s) {
+  if (s >= 80) return 'High';
+  if (s >= 60) return 'Good';
+  if (s >= 40) return 'Okay';
+  return 'Low';
+}
+
+// ─── Build modal widgets ──────────────────────────────────────
+function buildWidgets() {
+  document.getElementById('interestsGrid').innerHTML = INTERESTS.map(i => `
+    <div class="cb-opt">
+      <input type="checkbox" id="ci_${i}" value="${i}" onchange="liveScore()">
+      <label for="ci_${i}">${i}</label>
+    </div>`).join('');
+
+  document.getElementById('greenWrap').innerHTML = GREEN_FLAGS.map(f => `
+    <button type="button" class="tag-btn tag-gf" data-f="${f}" onclick="toggleTag(this)">${f}</button>`).join('');
+
+  document.getElementById('redWrap').innerHTML = RED_FLAGS.map(f => `
+    <button type="button" class="tag-btn tag-rf" data-f="${f}" onclick="toggleTag(this)">${f}</button>`).join('');
+}
+
+function toggleTag(btn) {
+  btn.classList.toggle('on');
+  liveScore();
+}
+
+// ─── Live score preview ───────────────────────────────────────
+function liveScore() {
+  const name = (document.getElementById('fName').value || '').trim();
+  const preview = document.getElementById('scorePreview');
+  if (!name) { preview.style.display = 'none'; return; }
+
+  const mock = {
+    communication: document.querySelector('input[name="rComm"]:checked')?.value || 'Consistent',
+    interests:  [...document.querySelectorAll('#interestsGrid input:checked')].map(el => el.value),
+    greenFlags: [...document.querySelectorAll('.tag-btn.tag-gf.on')].map(b => b.dataset.f),
+    redFlags:   [...document.querySelectorAll('.tag-btn.tag-rf.on')].map(b => b.dataset.f),
+    numDates:   parseInt(document.getElementById('fDates').value) || 1
+  };
+  const sc = calcScore(mock);
+  const col = scoreColor(sc);
+  const r = 19, circ = 2 * Math.PI * r;
+  const offset = circ - (sc / 100) * circ;
+
+  const pg = document.getElementById('spPg');
+  pg.style.stroke = col;
+  pg.setAttribute('stroke-dashoffset', offset);
+  document.getElementById('spNum').textContent = sc;
+  document.getElementById('spNum').style.color = col;
+  document.getElementById('spLbl').textContent = scoreLabel(sc);
+
+  const commDelta   = mock.communication === 'Consistent' ? '+20' : '-15';
+  const intDelta    = `+${mock.interests.length * 5}`;
+  const gfDelta     = `+${mock.greenFlags.length * 4}`;
+  const rfDelta     = mock.redFlags.length ? `-${mock.redFlags.length * 8}` : '0';
+  const datesDelta  = `+${Math.min(mock.numDates - 1, 4)}`;
+
+  document.getElementById('spBreak').innerHTML =
+    `<strong>Base:</strong> 50 &nbsp;|&nbsp;` +
+    `<strong>Comm:</strong> ${commDelta} &nbsp;|&nbsp;` +
+    `<strong>Interests:</strong> ${intDelta} &nbsp;|&nbsp;` +
+    `<strong>Green:</strong> ${gfDelta} &nbsp;|&nbsp;` +
+    `<strong>Red:</strong> ${rfDelta} &nbsp;|&nbsp;` +
+    `<strong>Dates:</strong> ${datesDelta}`;
+
+  preview.style.display = 'flex';
+}
+
+// ─── Modal open/close ─────────────────────────────────────────
+function openModal(id = null) {
+  buildWidgets();
+  resetForm();
+  document.getElementById('scorePreview').style.display = 'none';
+
+  if (id !== null) {
+    const e = entries.find(x => x.id === id);
+    if (!e) return;
+    document.getElementById('modalTitle').textContent = 'Edit Entry';
+    document.getElementById('editId').value = id;
+    document.getElementById('fName').value  = e.name;
+    document.getElementById('fAge').value   = e.age;
+    document.getElementById('fJob').value   = e.job;
+    document.getElementById('fDates').value = e.numDates;
+    document.getElementById('fNotes').value = e.notes || '';
+
+    const metEl  = document.querySelector(`input[name="rMet"][value="${e.howMet}"]`);
+    const commEl = document.querySelector(`input[name="rComm"][value="${e.communication}"]`);
+    if (metEl)  metEl.checked  = true;
+    if (commEl) commEl.checked = true;
+
+    (e.interests  || []).forEach(v => { const el = document.getElementById(`ci_${v}`); if (el) el.checked = true; });
+    document.querySelectorAll('.tag-btn.tag-gf').forEach(b => { if ((e.greenFlags||[]).includes(b.dataset.f)) b.classList.add('on'); });
+    document.querySelectorAll('.tag-btn.tag-rf').forEach(b => { if ((e.redFlags||[]).includes(b.dataset.f)) b.classList.add('on'); });
+    liveScore();
+  } else {
+    document.getElementById('modalTitle').textContent = 'Log New Date';
+    document.getElementById('editId').value = '';
+  }
+
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('fName').focus(), 250);
+}
+
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+
+function resetForm() {
+  ['fName','fAge','fJob','fNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fDates').value = 1;
+  document.getElementById('rApp').checked = true;
+  document.getElementById('rCon').checked = true;
+}
+
+// ─── Save ─────────────────────────────────────────────────────
+function saveEntry() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) {
+    const el = document.getElementById('fName');
+    el.style.borderColor = '#f87171';
+    el.focus();
+    setTimeout(() => el.style.borderColor = '', 1500);
+    return;
+  }
+
+  const editId = document.getElementById('editId').value;
+  const entry  = {
+    id:            editId || Date.now().toString(),
+    name,
+    age:           document.getElementById('fAge').value  || '?',
+    job:           document.getElementById('fJob').value.trim()  || 'N/A',
+    numDates:      parseInt(document.getElementById('fDates').value) || 1,
+    howMet:        document.querySelector('input[name="rMet"]:checked').value,
+    communication: document.querySelector('input[name="rComm"]:checked').value,
+    interests:     [...document.querySelectorAll('#interestsGrid input:checked')].map(el => el.value),
+    greenFlags:    [...document.querySelectorAll('.tag-btn.tag-gf.on')].map(b => b.dataset.f),
+    redFlags:      [...document.querySelectorAll('.tag-btn.tag-rf.on')].map(b => b.dataset.f),
+    notes:         document.getElementById('fNotes').value.trim(),
+    createdAt:     editId ? (entries.find(e => e.id === editId)?.createdAt || Date.now()) : Date.now()
+  };
+
+  if (editId) {
+    const idx = entries.findIndex(e => e.id === editId);
+    if (idx !== -1) entries[idx] = entry; else entries.push(entry);
+  } else {
+    entries.push(entry);
+  }
+
+  save();
+  closeModal();
+  renderCards();
+  updateStats();
+}
+
+// ─── Delete ───────────────────────────────────────────────────
+function deleteEntry(id) {
+  if (!confirm('Remove this person from your tracker?')) return;
+  entries = entries.filter(e => e.id !== id);
+  save();
+  renderCards();
+  updateStats();
+}
+
+// ─── Helpers ─────────────────────────────────────────────────
+function initials(name) {
+  return name.split(' ').map(w => w[0] || '').slice(0,2).join('').toUpperCase() || '?';
+}
+
+function scoreRing(score, size) {
+  const r = size === 48 ? 19 : 22;
+  const circ = 2 * Math.PI * r;
+  const cx = size / 2, cy = size / 2;
+  const offset = circ - (score / 100) * circ;
+  const col = scoreColor(score);
+  return `
+    <div class="score-ring">
+      <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+        <circle class="tr" cx="${cx}" cy="${cy}" r="${r}"/>
+        <circle class="pg" cx="${cx}" cy="${cy}" r="${r}"
+          stroke="${col}" stroke-dasharray="${circ.toFixed(2)}"
+          stroke-dashoffset="${offset.toFixed(2)}"/>
+      </svg>
+      <div class="score-inner">
+        <span class="score-num" style="color:${col}">${score}</span>
+        <span class="score-lbl">${scoreLabel(score)}</span>
+      </div>
+    </div>`;
+}
+
+// ─── Render ───────────────────────────────────────────────────
+function renderCards() {
+  const q    = document.getElementById('searchInput').value.toLowerCase();
+  const sort = document.getElementById('sortSel').value;
+
+  let list = entries
+    .filter(e => e.name.toLowerCase().includes(q) || (e.job || '').toLowerCase().includes(q))
+    .map(e => ({ ...e, score: calcScore(e) }));
+
+  if (sort === 'score')  list.sort((a,b) => b.score - a.score);
+  if (sort === 'name')   list.sort((a,b) => a.name.localeCompare(b.name));
+  if (sort === 'dates')  list.sort((a,b) => b.numDates - a.numDates);
+  if (sort === 'newest') list.sort((a,b) => b.createdAt - a.createdAt);
+
+  const label = document.getElementById('countLabel');
+  label.textContent = list.length > 0 ? `${list.length} ${list.length === 1 ? 'person' : 'people'}` : '';
+
+  const grid = document.getElementById('cardsGrid');
+  if (list.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">&#128152;</div>
+        <h3>${entries.length === 0 ? 'No dates logged yet' : 'No results found'}</h3>
+        <p>${entries.length === 0 ? 'Start tracking your dating life — log your first entry!' : 'Try a different search term.'}</p>
+        ${entries.length === 0 ? '<button class="btn-primary" onclick="openModal()">+ Log Your First Date</button>' : ''}
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((e, i) => {
+    const showRank = sort === 'score' && i < 3;
+    const metCls   = e.howMet === 'IRL' ? 'b-irl' : 'b-app';
+    const metIco   = e.howMet === 'IRL' ? '&#128205;' : '&#128241;';
+    const commCls  = e.communication === 'Consistent' ? 'b-ok' : 'b-bad';
+    const commIco  = e.communication === 'Consistent' ? '&#9989;' : '&#9889;';
+    const medals   = ['&#129351;','&#129352;','&#129353;'];
+
+    const intChips  = (e.interests  || []).map(x => `<span class="chip chip-int">${x}</span>`).join('');
+    const gfChips   = (e.greenFlags || []).map(x => `<span class="chip chip-gf">&#9989; ${x}</span>`).join('');
+    const rfChips   = (e.redFlags   || []).map(x => `<span class="chip chip-rf">&#128681; ${x}</span>`).join('');
+    const notesHtml = e.notes ? `<div class="notes-preview">"${e.notes}"</div>` : '';
+    const hasRank   = showRank ? 'has-rank' : '';
+
+    return `
+      <div class="date-card ${hasRank}">
+        ${showRank ? `<div class="rank-pip">${medals[i]}</div>` : ''}
+        <div class="card-top">
+          <div class="card-avatar">${initials(e.name)}</div>
+          <div class="card-info">
+            <div class="card-name">${e.name}</div>
+            <div class="card-meta">${e.age} yrs &bull; ${e.job}</div>
+          </div>
+          ${scoreRing(e.score, 54)}
+        </div>
+
+        <div class="badges">
+          <span class="badge ${metCls}">${metIco} ${e.howMet}</span>
+          <span class="badge ${commCls}">${commIco} ${e.communication}</span>
+          <span class="badge b-date">&#128140; ${e.numDates} date${e.numDates !== 1 ? 's' : ''}</span>
+        </div>
+
+        ${intChips ? `<div class="sec-lbl">Shared Interests</div><div class="chip-row">${intChips}</div>` : ''}
+        ${(gfChips || rfChips) ? `<div class="sec-lbl">Flags</div><div class="chip-row">${gfChips}${rfChips}</div>` : ''}
+        ${notesHtml}
+
+        <div class="card-actions">
+          <button class="btn-sm btn-edit"   onclick="openModal('${e.id}')">&#9999; Edit</button>
+          <button class="btn-sm btn-delete" onclick="deleteEntry('${e.id}')">&#128465; Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── Stats bar ────────────────────────────────────────────────
+function updateStats() {
+  const n = entries.length;
+  const totalDates = entries.reduce((s, e) => s + (e.numDates || 1), 0);
+  const scores     = entries.map(calcScore);
+  const avgScore   = n ? Math.round(scores.reduce((a,b) => a+b, 0) / n) : null;
+  const topIdx     = n ? scores.indexOf(Math.max(...scores)) : -1;
+  const topName    = topIdx >= 0 ? entries[topIdx].name.split(' ')[0] : null;
+
+  document.getElementById('sTotal').textContent = n;
+  document.getElementById('sDates').textContent = totalDates;
+  document.getElementById('sAvg').textContent   = avgScore !== null ? avgScore : '—';
+  document.getElementById('sTop').textContent   = topName || '—';
+}
+
+// ─── Keyboard ────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openModal(); }
+});
+
+// ─── Init ────────────────────────────────────────────────────
+renderCards();
+updateStats();
+</script>
+</body>
+</html>
